@@ -69,7 +69,7 @@ and anything they add (photos included) stays in their own browser.
 ## AI Integration
 
 All AI features go through [OpenRouter](https://openrouter.ai/) (default model
-`google/gemini-2.5-flash`, set with `OPENROUTER_MODEL`). The browser never talks
+`google/gemini-2.5-flash`, set with `MODEL_NAME`). The browser never talks
 to the model directly: it sends **structured data** (task type, closet list,
 measurements, live conditions) to a small FastAPI service on Google Cloud Run
 (`backend/`), which builds the prompt itself, holds the API key and calls
@@ -118,7 +118,7 @@ backend/    FastAPI API for Cloud Run: app/main.py, prompts.py, llm.py, product_
 cd backend
 python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-export OPENROUTER_API_KEY=...                       # optional: without it AI is switched off
+export API_KEY=...                       # optional: without it AI is switched off
 export CORS_ORIGINS=http://localhost:8000
 uvicorn app.main:app --port 8001
 

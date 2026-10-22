@@ -22,7 +22,7 @@ class LLMError(Exception):
 
 
 def ai_enabled() -> bool:
-    return bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    return bool((os.getenv("API_KEY", "").strip() or os.getenv("OPENROUTER_API_KEY", "")).strip())
 
 
 def _extract(text: str):
@@ -39,16 +39,16 @@ def _extract(text: str):
 
 async def complete_json(system: str, prompt: str):
     """Ask the model once (plus one free retry if the reply is not JSON). Returns a dict or None."""
-    key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    key = (os.getenv("API_KEY", "").strip() or os.getenv("OPENROUTER_API_KEY", "")).strip()
     if not key:
         raise LLMError(501, "misconfigured", "The AI service is not configured")
     body = {
-        "model": os.getenv("OPENROUTER_MODEL", "").strip() or DEFAULT_MODEL,
+        "model": (os.getenv("MODEL_NAME", "").strip() or os.getenv("OPENROUTER_MODEL", "")).strip() or DEFAULT_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
         "max_tokens": 8000,
         "response_format": {"type": "json_object"},
     }
-    url = (os.getenv("OPENROUTER_BASE_URL", "").strip() or DEFAULT_BASE_URL).rstrip("/") + "/chat/completions"
+    url = ((os.getenv("API_BASE_URL", "").strip() or os.getenv("OPENROUTER_BASE_URL", "")).strip() or DEFAULT_BASE_URL).rstrip("/") + "/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "X-Title": "SG Wardrobe"}
     async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
         for _ in range(2):
