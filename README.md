@@ -1,7 +1,7 @@
 # SG Wardrobe
 
-A mobile-friendly AI personal stylist for Singapore. Live demo:
-**<https://sg-wardrobe.vercel.app/>**
+A mobile-friendly AI personal stylist for Singapore, by Emily Gan (AI Lodge AY26/27 S1).
+Live demo: **<https://ail-ay2627-s1-emily-sg-wardrobe.vercel.app/>**
 
 ## Problem Statement
 
@@ -31,12 +31,12 @@ SG Wardrobe takes the guesswork out of getting dressed and shopping:
 3. The AI uses the closet, the measurements, the occasion and Singapore's
    conditions to suggest complete outfits from clothes they already have,
    explain their body shape and best colours, and review which pieces suit them.
-4. Before buying something online, they paste the shop link. The AI reads the
-   product page and size chart and says which size to buy, how it will fit, and
-   how well it matches their wardrobe.
+4. Before buying something online, they paste the shop's size chart (and,
+   optionally, the product link). The AI says which size to buy, how it will
+   fit, and how well it matches their wardrobe.
 
-Each person's closet, photos and measurements are saved to their own account,
-so they can come back on any device.
+This public demo has no accounts: every visitor starts with a sample closet,
+and anything they add (photos included) stays in their own browser.
 
 ## Key Features
 
@@ -58,111 +58,97 @@ so they can come back on any device.
   and suggests flattering colours, colours to avoid, and cuts and silhouettes.
 - **Wardrobe review:** "What stays, what goes": each piece is checked against
   the user's measurements and the heat.
-- **Smart shopping link analyzer:** paste a link to a specific product (or paste
-  a size chart instead) to get the size to buy, a fit check by body area
-  (good / snug / loose) and a wardrobe match score, with pieces from the closet
-  it pairs with.
-- **Accounts:** each person has their own saved closet, measurements and
-  review. There is also a sample closet for demo accounts and a feedback form in
-  Settings.
+- **Smart shopping size check:** paste the shop's size chart (the most reliable
+  input) and optionally the product link, to get the size to buy, a fit check by
+  body area (good / snug / loose) and a wardrobe match score, with pieces from
+  the closet it pairs with.
+- **No sign-in:** the closet, measurements, shopping check and review are kept
+  in the browser's local storage. Settings can reset everything to the sample
+  closet.
 
 ## AI Integration
 
-All AI features use **Claude Sonnet 5.5** (Anthropic). The browser never talks
-to Anthropic directly: it sends a request to a Python serverless function on
-Vercel (`api/style.py`), which holds the API key and forwards the request.
+All AI features go through [OpenRouter](https://openrouter.ai/) (default model
+`google/gemini-2.5-flash`, set with `OPENROUTER_MODEL`). The browser never talks
+to the model directly: it sends **structured data** (task type, closet list,
+measurements, live conditions) to a small FastAPI service on Google Cloud Run
+(`backend/`), which builds the prompt itself, holds the API key and calls
+OpenRouter. The endpoint cannot be used as a general-purpose AI proxy.
 
-| Feature | What is sent to the AI | What comes back |
+| Feature | What the browser sends (`POST /api/style`) | What comes back |
 |---|---|---|
-| Outfit ideas | The occasion and its dress-code rules, live conditions (temperature, feels-like, humidity, 2-hour and 24-hour forecast, haze), the outfits already on screen, and the closet list (name, category, colour, fabric, breathability, formality, rain-safe, aircon layer) | Outfits as JSON, each listing closet item IDs and a short reason |
-| Body shape & colours | Height, shoulder, bust, waist, hips, leg length, weight, frame and the chosen skin shade | Body shape, flattering colours, colours to avoid, and recommended cuts |
-| Wardrobe review | Measurements and the closet list | Which pieces to keep or let go, and why |
-| Shopping link analyzer | Product name, details and size chart read from the shop page (`api/product.py`), plus measurements and the closet list | Recommended size, confidence, fit by body area, match score, and closet pieces it pairs with |
+| Outfit ideas (`task: outfits`) | The occasion, the outfits already on screen, the closet list (name, category, colour, fabric, breathability, formality, rain-safe, aircon layer) and live NEA readings (temperature, feels-like, humidity, 2-hour and 24-hour forecast, PSI and PM2.5) | Outfits as JSON, each listing closet item IDs and a short reason |
+| Body shape & colours (`task: profile`) | Height, shoulder, bust, waist, hips, leg length, weight, frame, chosen skin shade, closet list | Body shape, flattering colours, colours to avoid, silhouettes, materials and three looks |
+| Wardrobe review (`task: review`) | Measurements, style-profile summary, closet list | Which pieces to keep, restyle or let go, and what to buy next |
+| Size check (`task: shop`) | Measurements, style-profile summary, the pasted size chart, text read from the shop page if a link was given (`POST /api/product`), closet list | Recommended size, confidence, fit by body area, match score, closet pieces it pairs with |
 
-The AI only ever returns text. The app never shows that text as-is: it checks
-every answer before displaying it (see **Guardrails** below). When no API key
-is set, the app runs with AI switched off and every other feature keeps working.
-
-When run locally with `wardrobe-server.py`, the same prompts go to the Claude
-Code CLI installed on that computer instead of the API.
+The app never shows the model's text as-is: it checks every answer before
+displaying it (see **Guardrails** below). When no API key is set, the API
+answers `GET /api/style` with `{"ai": false}` and the site switches its AI
+features off; everything else keeps working.
 
 ## External Tools & Datasets
 
 | Tool / dataset | Used for |
 |---|---|
-| [Anthropic Claude API](https://docs.anthropic.com/), model `claude-sonnet-5-5`, through the `anthropic` Python SDK | Outfit ideas, body shape and colour analysis, wardrobe review, size and fit checks |
-| [Supabase](https://supabase.com/) (`@supabase/supabase-js`) | Accounts and sign-in, the database for closets, measurements and feedback, and private photo storage |
-| [data.gov.sg real-time API](https://data.gov.sg/) (Meteorological Service Singapore / NEA): air temperature, relative humidity, 2-hour and 24-hour forecasts, PSI and PM2.5 | Live weather and haze on the Today page and in outfit prompts. Free and needs no API key |
-| [@imgly/background-removal](https://www.npmjs.com/package/@imgly/background-removal) | Removing photo backgrounds in the browser, so the original photo is never uploaded for this |
-| [Vercel](https://vercel.com/) | Hosting the web page and the Python serverless functions |
+| [OpenRouter](https://openrouter.ai/) (default `google/gemini-2.5-flash`) | Outfit ideas, body shape and colour analysis, wardrobe review, size and fit checks |
+| [FastAPI](https://fastapi.tiangolo.com/) on [Google Cloud Run](https://cloud.google.com/run) | The API in `backend/` |
+| [Upstash Redis](https://upstash.com/) | The shared AI Lodge rate limiter on the AI route |
+| [data.gov.sg real-time API](https://data.gov.sg/) (Meteorological Service Singapore / NEA): air temperature, relative humidity, 2-hour and 24-hour forecasts, PSI and PM2.5 | Live weather and haze on the Today page and in outfit prompts. Called from the browser; free and needs no API key |
+| [@imgly/background-removal](https://www.npmjs.com/package/@imgly/background-removal) (AGPL-3.0) | Removing photo backgrounds in the browser, so photos never leave the device |
+| [Vercel](https://vercel.com/) | Hosting the static site in `frontend/` |
 | Google Fonts | Fonts |
-| Claude Code (in VS Code) | Building the app; also the local AI backend for `wardrobe-server.py` |
-| Gemini | Testing early ideas, user flows and styling logic during planning |
-| GitHub | Version control |
+| Claude Code (in VS Code), Gemini, GitHub | Building and planning the app, version control |
 
-The app does not use any training dataset. The sample closet photos in
-`assets/` are bundled demo images.
+The app does not use any training dataset. The sample closet photos are
+embedded in `frontend/index.html` or bundled in `frontend/assets/`.
 
-## Installation & Setup
+## Project Layout
 
-### Prerequisites
-
-- Python 3.10 or newer
-- A free [Supabase](https://supabase.com/) project
-- For AI locally, either [Claude Code](https://claude.com/claude-code)
-  installed and signed in, or an Anthropic API key with credits
-  ([console.anthropic.com](https://console.anthropic.com/))
-
-### 1. Get the code
-
-```bash
-git clone https://github.com/homesickpencil/sg-wardrobe.git
-cd sg-wardrobe
+```
+frontend/   static site for Vercel: index.html, assets/, build.js -> config.js (VITE_API_BASE)
+backend/    FastAPI API for Cloud Run: app/main.py, prompts.py, llm.py, product_reader.py, rate limiting
+.github/workflows/deploy.yml   builds backend/ and deploys it to Cloud Run on push to main
 ```
 
-### 2. Set up Supabase
-
-1. In the Supabase SQL Editor, run `supabase/setup.sql`. It creates the tables,
-   the private photo bucket, the privacy rules (each person can only reach their
-   own rows and photos) and the account-deletion function. It is safe to rerun.
-2. Run `supabase/feedback.sql` to create the feedback table. People can send
-   feedback but not read it. Read it in Supabase → Table Editor → feedback.
-3. Optional: run `supabase/demo-account.sql` (put the demo PIN in the script
-   first) so that account keeps the built-in sample closet.
-4. In Supabase → Authentication → Sign In / Providers → Email, turn
-   **Confirm email** off. Sign-in uses made-up addresses that cannot receive
-   email.
-5. Put your project URL and publishable key at the top of the "Account" script
-   in `index.html` and at the top of `api/style.py` and `api/product.py`, or set
-   them as the `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` environment
-   variables for the functions. Both values are meant to be public. Never put
-   the `service_role` or secret key in the page.
-
-### 3. Run locally
+## Run Locally
 
 ```bash
-python3 wardrobe-server.py
+# 1. API (Python 3.11+)
+cd backend
+python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+export OPENROUTER_API_KEY=...                       # optional: without it AI is switched off
+export CORS_ORIGINS=http://localhost:8000
+uvicorn app.main:app --port 8001
+
+# 2. Site (another terminal)
+cd frontend
+node build.js                                       # writes config.js -> http://localhost:8001
+python -m http.server 8000                          # open http://localhost:8000
 ```
 
-Open <http://localhost:8765>. This local server sends AI requests to the Claude
-Code CLI on your computer, so it needs no API key.
+`GET http://localhost:8001/api/health` returns `{"status":"ok"}`. Rate limiting
+is off unless the Upstash variables are set. Every backend variable is listed
+in `.env.example`.
 
-To test the Vercel functions instead, run `pip install -r requirements.txt`,
-set `ANTHROPIC_API_KEY` in your shell, and use the Vercel CLI (`vercel dev`).
+## Deploy (AI Lodge stack)
 
-### 4. Deploy to Vercel (optional)
-
-1. Import the GitHub repository in Vercel.
-2. In **Settings → Environment Variables**, add:
-   - `ANTHROPIC_API_KEY` (optional): your Anthropic API key. Add it only in
-     Vercel, never in `index.html` or Git. Without it, the app runs with AI
-     switched off.
-   - `ANTHROPIC_MODEL` (optional): leave it unset to use `claude-sonnet-5-5`.
-     Requests use Anthropic's automatic fallback (`fallbacks: "default"`), so
-     any other model must support that too.
-3. Deploy, and redeploy after any change to environment variables.
-4. Before sharing publicly, set a spend limit in the Anthropic Console and add
-   Vercel Firewall rate limiting for `/api/style` and `/api/product`.
+- **Backend → Cloud Run:** fill `.env` from `.env.example`, upload it with
+  `gh secret set DOTENV --repo smubia-projects/ail-ay2627-s1-emily-sg-wardrobe < .env`,
+  then push to `main` (or `gh workflow run deploy.yml`). The workflow builds
+  `backend/`, pushes it to Docker Hub and deploys service
+  `ail-ay2627-s1-emily-sg-wardrobe` in `asia-southeast3`
+  (`https://ail-ay2627-s1-emily-sg-wardrobe-464725632804.asia-southeast3.run.app`).
+- **Frontend → Vercel:** import the repo, set the root directory to `frontend`,
+  and set `VITE_API_BASE` to the Cloud Run URL. `vercel.json` runs
+  `npm run build` and serves the folder as a static site.
+- **CORS:** `CORS_ORIGINS` must contain the Vercel URL
+  (`https://ail-ay2627-s1-emily-sg-wardrobe.vercel.app`).
+- **Rate limit:** the AI route uses the club's shared engine with one bucket,
+  `style` (fallbacks `RATE_LIMIT_STYLE_MAX`, `RATE_LIMIT_WINDOW_SECONDS`). Over
+  the limit the site shows the AI Lodge call-to-action; when the demo is paused
+  centrally it shows a "demo paused" notice instead.
 
 ## AI Safety & Limitations
 
@@ -183,27 +169,31 @@ set `ANTHROPIC_API_KEY` in your shell, and use the Vercel CLI (`vercel dev`).
   not a judgement of anyone's body. The app gives styling suggestions, not
   rules.
 - **Personal data is sent to a third party.** Measurements and closet details
-  are sent to Anthropic to generate answers. Closet photos are not sent to the
-  AI.
-- **Demo-grade sign-in.** The PIN (initials plus the last 4 digits of a phone
-  number) is easy to guess: anyone who knows someone's initials and number can
-  open their closet, and two people with the same PIN share one closet. It must
-  be replaced with proper authentication before real users join.
-- **Shop pages vary.** Some shops block automated reading or load sizes with
-  scripts, so the analyzer may not find the product details. Users can paste a
-  size chart instead.
-- **Cost.** Every AI request costs money. A public demo without a spend limit
-  could run up charges.
+  are sent through OpenRouter to the model provider to generate answers. Closet
+  photos are not sent to the AI.
+- **Data lives in one browser.** There are no accounts. Closet photos and
+  measurements are stored in the browser's local storage: they are lost when
+  site data is cleared and do not follow the user to another device. Local
+  storage is small (about 5 MB), so a few dozen added photos can fill it; the
+  app warns when that happens.
+- **Shop pages vary.** Many shops block automated reading (especially from
+  cloud servers) or load sizes with scripts, so the pasted size chart is the
+  primary input and the shop link is only a best-effort extra.
+- **Cost.** Every AI request costs money. The AI route is rate limited per
+  IP by the AI Lodge limiter, and the club can pause the demo centrally.
 
 ### Guardrails implemented
 
-- **AI only for signed-in users.** `api/style.py` and `api/product.py` check
-  each request's Supabase sign-in token before doing anything, and reject
-  requests from other websites.
-- **The API key stays on the server.** It is read from Vercel's environment and
-  is never sent to the browser.
-- **Request limits.** Prompts are capped at 50,000 characters, AI requests time
-  out after 45 seconds, and replies are kept short with low effort.
+- **Structured requests only.** `POST /api/style` accepts one of four task
+  types with validated, length-capped fields (closet of at most 200 items,
+  names of at most 80 characters, a size chart of at most 4,000 characters,
+  bodies of at most 100 KB). The prompt is assembled on the server, and text
+  the user typed or that came from a shop page is fenced off and labelled as
+  untrusted.
+- **The API key stays on the server.** It is read from Cloud Run's environment
+  and is never sent to the browser.
+- **Rate limiting.** The shared AI Lodge limiter counts AI requests per IP;
+  shop-page reads (no AI) have their own small flood guard.
 - **Every AI answer is checked before it is shown.** Outfits must use real items
   from the user's closet and have a valid combination (one top and one bottom or
   one dress, plus shoes; a layer must be marked as an aircon layer). Outfits
@@ -213,19 +203,21 @@ set `ANTHROPIC_API_KEY` in your shell, and use the Vercel CLI (`vercel dev`).
 - **Heat rules in the prompt.** The prompt tells the AI to judge heat honestly,
   for example no layers, denim, wool, leather or boots for Outdoors, and to
   prefer breathable fabrics.
-- **Refusals and errors are handled.** If the AI declines a request, Anthropic
-  automatically retries on a fallback model. If it still declines, or the
-  service is busy or down, the user sees a clear message and their outfits stay
-  unchanged.
+- **Refusals and errors are handled.** If the AI declines, is busy, times out
+  or replies with something other than JSON (retried once on the server), the
+  user sees a clear message and their outfits stay unchanged.
 - **Safe link reading.** The shop page reader only fetches public `http(s)`
   addresses (also after redirects), never private or local network addresses.
-- **Private data.** Supabase row-level security means each person can only read
-  their own rows and photos. Photos are stored in a private bucket, signing out
-  clears the person's data from the browser, and accounts can be deleted.
-- **Spend control.** An Anthropic spend limit is set on the account, and the app
-  runs with AI switched off when no key is configured.
+- **Private data.** Nothing is stored on the server: the API keeps no
+  database and no logs of closet contents. Photos never leave the browser.
+- **Spend control.** The app runs with AI switched off when no key is
+  configured, and OpenRouter spend can be capped on the key.
 
 ### Testing
+
+The student's testing below was done on the original Supabase + Anthropic
+version; the AI Lodge port was re-checked with a stubbed model.
+
 
 - Tested the live site with several accounts, checking that each person's
   closet, measurements and review stay separate and persist after signing out
