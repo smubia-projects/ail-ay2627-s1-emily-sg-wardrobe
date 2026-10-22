@@ -126,10 +126,77 @@ async function askAI(payload, signal) {
   catch (e) { throw Object.assign(new Error('unreachable'), {code: e && e.name === 'AbortError' ? 'cancelled' : 'offline'}); }
   try { j = await r.json(); } catch (e) {}
   const d = (j && j.detail) || {};
-  if (r.status === 429) throw Object.assign(new Error('limit'), {code: 'limit', used: d.queries_used});
-  if (r.status === 503) throw Object.assign(new Error('paused'), {code: 'paused', message: d.message});
+  if (r.status === 429) { showLimitCTA(d.queries_used); throw Object.assign(new Error('limit'), {code: 'limit'}); }
+  if (r.status === 503) { showPaused(d.message); throw Object.assign(new Error('paused'), {code: 'paused'}); }
   if (!r.ok) throw Object.assign(new Error((j && j.error) || 'failed'), {code: (j && j.code) || 'failed'});
   return j && j.data && typeof j.data === 'object' ? j.data : null; // null: the model's reply was not JSON
+}
+// ---- AI Lodge rate-limit CTA (429) and demo-paused notice (503 from the club kill switch). They never share a modal.
+const RATE_LIMIT_CTA = {
+  name: 'SG Wardrobe', emoji: '👗', accentColor: '#7A5C32',
+  headline: 'You\'ve styled your fill!',
+  description: 'This demo answered {count} AI styling requests for you. In SMUBIA\'s AI Lodge, you learn to build apps like this from scratch.',
+  programme: 'AI Lodge', programmeLink: 'https://www.smubia.com/ai-lodge',
+  githubLink: 'https://github.com/smubia-projects/ail-ay2627-s1-emily-sg-wardrobe', showcaseLink: 'https://www.smubia.com/showcase',
+};
+document.head.insertAdjacentHTML('beforeend', '<style>' +
+'.rl-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:16px;background:rgba(20,18,15,0);backdrop-filter:blur(0);-webkit-backdrop-filter:blur(0);visibility:hidden;transition:background .5s ease,backdrop-filter .5s ease,-webkit-backdrop-filter .5s ease,visibility 0s .5s}' +
+'.rl-overlay.open{visibility:visible;background:rgba(20,18,15,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .5s ease,backdrop-filter .5s ease,-webkit-backdrop-filter .5s ease}' +
+'.rl-card{width:min(400px,100%);border-radius:22px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.4);transform:translateY(16px) scale(.95);opacity:0;transition:transform .6s cubic-bezier(.16,1,.3,1),opacity .6s cubic-bezier(.16,1,.3,1);font-family:"Hanken Grotesk",system-ui,sans-serif}' +
+'.rl-overlay.open .rl-card{transform:none;opacity:1}' +
+'.rl-banner{position:relative;overflow:hidden;padding:28px 24px 22px;text-align:center;color:#fff}' +
+'.rl-orb{position:absolute;border-radius:50%;background:rgba(255,255,255,.14)}' +
+'.rl-emoji{font-size:40px;line-height:1;margin-bottom:10px}' +
+'.rl-headline{margin:0 0 8px;font:500 26px/1.15 "Playfair Display",serif}' +
+'.rl-desc{margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.92)}' +
+'.rl-body{background:#1E1B17;padding:18px 20px 16px;display:flex;flex-direction:column;gap:10px}' +
+'.rl-btn{position:relative;display:flex;align-items:center;justify-content:center;min-height:50px;padding:0 44px;border-radius:14px;font-size:15px;font-weight:600;text-decoration:none;color:#F1ECE2;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}' +
+'.rl-btn:hover{background:rgba(255,255,255,.11)}' +
+'.rl-btn.rl-primary{color:#fff;border:0}' +
+'.rl-btn .rl-arrow{position:absolute;right:18px;opacity:.55}' +
+'.rl-dismiss{min-height:44px;border:0;background:transparent;color:rgba(241,236,226,.6);font:500 14px "Hanken Grotesk",sans-serif;cursor:pointer}' +
+'.rl-dismiss:hover{color:#F1ECE2}' +
+'.pz-card{width:min(360px,100%);background:#fff;color:#1E1E1E;border-radius:20px;padding:22px 20px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 48px rgba(0,0,0,.3);transform:translateY(12px);opacity:0;transition:transform .35s ease,opacity .35s ease;font-family:"Hanken Grotesk",system-ui,sans-serif}' +
+'.rl-overlay.open .pz-card{transform:none;opacity:1}' +
+'@media (prefers-reduced-motion:reduce){.rl-overlay,.rl-card,.pz-card{transition:none!important}}' +
+'</style>');
+{
+  const C = RATE_LIMIT_CTA, A = C.accentColor;
+  const ce = v => String(v).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])); // esc() is defined further down
+  const btn = (href, label, primary) => '<a class="rl-btn' + (primary ? ' rl-primary' : '') + '" href="' + href + '" target="_blank" rel="noopener noreferrer"' +
+    (primary ? ' style="background:linear-gradient(135deg,' + A + ' 0%,#B08A57 100%)"' : '') + '><span>' + label + '</span><span class="rl-arrow" aria-hidden="true">→</span></a>';
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="rl-overlay" id="rl-overlay"><div class="rl-card" role="dialog" aria-modal="true" aria-labelledby="rl-title" aria-describedby="rl-desc">' +
+      '<div class="rl-banner" style="background:linear-gradient(135deg,' + A + ' 0%,#9C7444 55%,#C9A46E 100%)"><span class="rl-orb" style="width:130px;height:130px;top:-40px;right:-30px"></span><span class="rl-orb" style="width:70px;height:70px;bottom:-20px;left:-14px"></span>' +
+        '<div class="rl-emoji" aria-hidden="true">' + C.emoji + '</div><h2 class="rl-headline" id="rl-title">' + ce(C.headline) + '</h2><p class="rl-desc" id="rl-desc"></p></div>' +
+      '<div class="rl-body">' + btn(C.programmeLink, 'Join ' + ce(C.programme), true) + btn(C.githubLink, 'Self-host from GitHub') + btn(C.showcaseLink, 'Explore other projects') +
+        '<button type="button" class="rl-dismiss" id="rl-dismiss">Maybe later</button></div></div></div>' +
+    '<div class="rl-overlay" id="pz-overlay"><div class="pz-card" role="dialog" aria-modal="true" aria-labelledby="pz-title" aria-describedby="pz-msg">' +
+      '<div aria-hidden="true" style="font-size:28px">⏸️</div><h2 id="pz-title" style="margin:0;font:500 24px/1.2 \'Playfair Display\',serif">Demo paused</h2>' +
+      '<p id="pz-msg" style="margin:0;font-size:15px;line-height:1.5;color:#5A554D"></p>' +
+      '<p style="margin:0;font-size:13px;line-height:1.5;color:#5A554D">Your closet and measurements are safe in this browser. Everything except the AI features still works.</p>' +
+      '<button type="button" id="pz-ok" style="margin-top:6px;min-height:48px;border:0;border-radius:14px;background:#1E1E1E;color:#fff;font:600 15px \'Hanken Grotesk\',sans-serif;cursor:pointer">OK</button></div></div>');
+  let openEl = null, back = null;
+  const show = (el, focus) => { if (openEl) hide(); back = document.activeElement; openEl = el; el.classList.add('open'); setTimeout(() => focus.focus({preventScroll: true}), 30); };
+  const hide = () => { if (!openEl) return; openEl.classList.remove('open'); openEl = null; if (back && document.contains(back)) back.focus({preventScroll: true}); };
+  window.showLimitCTA = n => {
+    const count = Number.isFinite(+n) && +n > 0 ? String(+n) : 'a few';
+    $('#rl-desc').innerHTML = ce(C.description).replace('{count}', '<strong>' + ce(count) + '</strong>');
+    show($('#rl-overlay'), $('#rl-overlay .rl-primary'));
+  };
+  window.showPaused = msg => { $('#pz-msg').textContent = msg || 'This demo is temporarily paused. Check back soon.'; show($('#pz-overlay'), $('#pz-ok')); };
+  $('#rl-dismiss').addEventListener('click', hide); $('#pz-ok').addEventListener('click', hide);
+  $$('.rl-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) hide(); }));
+  document.addEventListener('keydown', e => {
+    if (!openEl) return;
+    if (e.key === 'Escape') { e.preventDefault(); return hide(); }
+    if (e.key === 'Tab') { // keep focus inside the open dialog
+      const f = $$('a,button', openEl), a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+      else if (!openEl.contains(document.activeElement)) { e.preventDefault(); a.focus(); }
+    }
+  }, true);
 }
 const closetFor = snap => snap.map(i => ({n: String(i.n).slice(0, 80), cat: i.cat, colour: String(i.colour || '').slice(0, 24), fab: i.fab, br: Math.round(+i.br || 0), formality: i.formality, rain: !!i.rain, aircon: !!i.aircon}));
 const bodyFor = m => ({height: +m.height, shoulder: +m.shoulder, bust: +m.bust, waist: +m.waist, hips: +m.hips, leg: +m.leg, weight: +m.weight, frame: m.frame || null});
