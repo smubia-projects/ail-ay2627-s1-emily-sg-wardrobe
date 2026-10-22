@@ -136,8 +136,8 @@ const RATE_LIMIT_CTA = {
   name: 'SG Wardrobe', emoji: '👗', accentColor: '#7A5C32',
   headline: 'You\'ve styled your fill!',
   description: 'This demo answered {count} AI styling requests for you. In SMUBIA\'s AI Lodge, you learn to build apps like this from scratch.',
-  programme: 'AI Lodge', programmeLink: 'https://www.smubia.com/ai-lodge',
-  githubLink: 'https://github.com/smubia-projects/ail-ay2627-s1-emily-sg-wardrobe', showcaseLink: 'https://www.smubia.com/showcase',
+  programme: 'AI Lodge', programmeLink: 'https://www.smubia.com/ailodge',
+  githubLink: 'https://github.com/smubia-projects/ail-ay2627-s1-emily-sg-wardrobe', showcaseLink: 'https://www.smubia.com/Projects',
 };
 document.head.insertAdjacentHTML('beforeend', '<style>' +
 '.rl-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:16px;background:rgba(20,18,15,0);backdrop-filter:blur(0);-webkit-backdrop-filter:blur(0);visibility:hidden;transition:background .5s ease,backdrop-filter .5s ease,-webkit-backdrop-filter .5s ease,visibility 0s .5s}' +
@@ -169,7 +169,7 @@ document.head.insertAdjacentHTML('beforeend', '<style>' +
     '<div class="rl-overlay" id="rl-overlay"><div class="rl-card" role="dialog" aria-modal="true" aria-labelledby="rl-title" aria-describedby="rl-desc">' +
       '<div class="rl-banner" style="background:linear-gradient(135deg,' + A + ' 0%,#9C7444 55%,#C9A46E 100%)"><span class="rl-orb" style="width:130px;height:130px;top:-40px;right:-30px"></span><span class="rl-orb" style="width:70px;height:70px;bottom:-20px;left:-14px"></span>' +
         '<div class="rl-emoji" aria-hidden="true">' + C.emoji + '</div><h2 class="rl-headline" id="rl-title">' + ce(C.headline) + '</h2><p class="rl-desc" id="rl-desc"></p></div>' +
-      '<div class="rl-body">' + btn(C.programmeLink, 'Join ' + ce(C.programme), true) + btn(C.githubLink, 'Self-host from GitHub') + btn(C.showcaseLink, 'Explore other projects') +
+      '<div class="rl-body">' + btn(C.programmeLink, 'Join ' + ce(C.programme), true) + btn(C.showcaseLink, 'Explore other projects') + btn(C.githubLink, 'View on GitHub') +
         '<button type="button" class="rl-dismiss" id="rl-dismiss">Maybe later</button></div></div></div>' +
     '<div class="rl-overlay" id="pz-overlay"><div class="pz-card" role="dialog" aria-modal="true" aria-labelledby="pz-title" aria-describedby="pz-msg">' +
       '<div aria-hidden="true" style="font-size:28px">⏸️</div><h2 id="pz-title" style="margin:0;font:500 24px/1.2 \'Playfair Display\',serif">Demo paused</h2>' +
