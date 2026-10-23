@@ -69,7 +69,7 @@ and anything they add (photos included) stays in their own browser.
 ## AI Integration
 
 All AI features go through [OpenRouter](https://openrouter.ai/) (default model
-`google/gemini-2.5-flash`, set with `MODEL_NAME`). The browser never talks
+`gemini-3.5-flash-lite`, set with `MODEL_NAME`). The browser never talks
 to the model directly: it sends **structured data** (task type, closet list,
 measurements, live conditions) to a small FastAPI service on Google Cloud Run
 (`backend/`), which builds the prompt itself, holds the API key and calls
@@ -91,7 +91,7 @@ features off; everything else keeps working.
 
 | Tool / dataset | Used for |
 |---|---|
-| [OpenRouter](https://openrouter.ai/) (default `google/gemini-2.5-flash`) | Outfit ideas, body shape and colour analysis, wardrobe review, size and fit checks |
+| [apiyi](https://apiyi.com) (default `gemini-3.5-flash-lite`) | Outfit ideas, body shape and colour analysis, wardrobe review, size and fit checks |
 | [FastAPI](https://fastapi.tiangolo.com/) on [Google Cloud Run](https://cloud.google.com/run) | The API in `backend/` |
 | [Upstash Redis](https://upstash.com/) | The shared AI Lodge rate limiter on the AI route |
 | [data.gov.sg real-time API](https://data.gov.sg/) (Meteorological Service Singapore / NEA): air temperature, relative humidity, 2-hour and 24-hour forecasts, PSI and PM2.5 | Live weather and haze on the Today page and in outfit prompts. Called from the browser; free and needs no API key |

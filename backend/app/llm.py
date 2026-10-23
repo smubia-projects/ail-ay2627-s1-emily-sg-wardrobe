@@ -9,8 +9,8 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "google/gemini-2.5-flash"
+DEFAULT_BASE_URL = "https://api.apiyi.com/v1"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
 
 class LLMError(Exception):
