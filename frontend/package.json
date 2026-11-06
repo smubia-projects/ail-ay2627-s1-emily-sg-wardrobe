@@ -1,0 +1,9 @@
+{
+  "name": "ail-ay2627-s1-emily-sg-wardrobe-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SG Wardrobe static frontend (Vercel)",
+  "scripts": {
+    "build": "node ./build.js"
+  }
+}
