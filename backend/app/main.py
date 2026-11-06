@@ -3,8 +3,8 @@
 Routes
   GET  /api/health   liveness probe
   GET  /api/style    {"ai": bool} so the page can switch AI features off cleanly
-  POST /api/style    one of four styling tasks, prompt built server-side
-  POST /api/product  read one public shop page for the size checker
+  POST /api/style    one of four styling tasks, prompt built server-side (rate limited)
+  POST /api/product  read one public shop page for the size checker (flood guarded)
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from app import product_reader
 from app.llm import LLMError, ai_enabled, complete_json
 from app.prompts import SYSTEM, StyleRequest, build_prompt
+from app.rate_limit import check_product_flood, check_rate_limit
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sg-wardrobe")
@@ -68,6 +69,7 @@ async def style(request: Request):
         return _error(400, "bad_request", "Invalid request")
     if not ai_enabled():
         return _error(501, "misconfigured", "The AI service is not configured")
+    check_rate_limit(request, "style")  # counts valid AI calls only; 429 / 503 come from the shared engine
     try:
         data = await complete_json(SYSTEM, build_prompt(req))
     except LLMError as e:
@@ -87,6 +89,7 @@ async def product(request: Request):
         url = ProductRequest.model_validate_json(raw).url.strip()
     except ValidationError:
         return _error(400, "bad_request", "Invalid URL")
+    check_product_flood(request)
     try:
         status, result = await asyncio.to_thread(product_reader.read_product, url)
     except Exception:
