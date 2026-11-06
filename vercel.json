@@ -1,9 +1,0 @@
-{
-  "framework": null,
-  "functions": {
-    "api/*.py": {
-      "maxDuration": 60,
-      "includeFiles": "wardrobe-server.py"
-    }
-  }
-}
