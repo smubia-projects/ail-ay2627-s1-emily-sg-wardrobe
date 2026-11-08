@@ -222,6 +222,9 @@ def outfits_prompt(r: OutfitsRequest) -> str:
         "- Each outfit has either exactly one top (category Tops) and one bottom (Bottoms), OR one dress (Dresses), plus one pair of shoes (Footwear). A layer (Layers) is optional and only allowed if its aircon_layer is yes. Add 0 to 2 accessories (Accessories).",
         "- Judge heat and humidity honestly. Prefer breathability 4 or 5 for tops. Avoid heavy, dark, thick or slow-drying pieces outdoors. Never use breathability 1 items or wool in this weather.",
         "- Match the formality of the pieces to the occasion. Use only ids from the list. The 3 outfits must differ from each other and from the ones under Avoid.",
+        "- If top is set, bottom must be a Bottoms id: never leave bottom null unless dress is set (and then top and bottom are both null). "
+        "Bottoms may repeat across outfits and from the Avoid list, as long as each whole outfit is different. Valid Bottoms ids: "
+        + (", ".join(str(i) for i, it in enumerate(r.closet) if it.cat == "Bottoms") or "none") + ".",
         "- name: 2 to 4 words. tag: one word. why: two short sentences that mention the occasion once and the weather once.",
         "- outdoor: true if the occasion is mostly outdoors or physically active, otherwise false.",
         "Avoid (already shown): " + ("; ".join(avoid) if avoid else "none"),
@@ -302,3 +305,20 @@ def review_prompt(r: ReviewRequest) -> str:
 
 def build_prompt(req) -> str:
     return {"outfits": outfits_prompt, "profile": profile_prompt, "shop": shop_prompt, "review": review_prompt}[req.task](req)
+
+
+def complete_outfits(data: dict, closet) -> int:
+    """How many outfits in a reply have a valid slot structure (top + bottom, or a dress alone, plus shoes), the same
+    shape check the page's validate() makes before showing them."""
+    def cat(i):
+        return closet[i].cat if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(closet) else None
+    ok = 0
+    for o in data.get("outfits") or []:
+        if not isinstance(o, dict) or cat(o.get("shoes")) != "Footwear":
+            continue
+        top, bottom, dress = o.get("top"), o.get("bottom"), o.get("dress")
+        if dress is not None:
+            ok += cat(dress) == "Dresses" and top is None and bottom is None
+        else:
+            ok += cat(top) == "Tops" and cat(bottom) == "Bottoms"
+    return ok

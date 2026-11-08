@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from app import product_reader
 from app.llm import LLMError, ai_enabled, complete_json
-from app.prompts import SYSTEM, StyleRequest, build_prompt
+from app.prompts import SYSTEM, StyleRequest, build_prompt, complete_outfits
 from app.rate_limit import check_product_flood, check_rate_limit
 
 logging.basicConfig(level=logging.INFO)
@@ -71,7 +71,16 @@ async def style(request: Request):
         return _error(501, "misconfigured", "The AI service is not configured")
     check_rate_limit(request, "style")  # counts valid AI calls only; 429 / 503 come from the shared engine
     try:
-        data = await complete_json(SYSTEM, build_prompt(req))
+        prompt = build_prompt(req)
+        data = await complete_json(SYSTEM, prompt)
+        # A reply whose every outfit is missing its bottom (or mixes a dress with a top) shows the visitor nothing; ask
+        # once more here instead of spending another of their requests.
+        if req.task == "outfits" and isinstance(data, dict) and not complete_outfits(data, req.closet):
+            logger.warning("No complete outfit in the reply; retrying once")
+            retry = await complete_json(SYSTEM, prompt + "\nYour previous answer had no complete outfit (a top always needs "
+                                        "a bottom from the Bottoms ids, or use one dress alone). Repeating a bottom is fine.")
+            if isinstance(retry, dict) and complete_outfits(retry, req.closet):
+                data = retry
     except LLMError as e:
         return _error(e.status, e.code, e.message)
     # null data means the model did not answer in JSON twice; the page asks again or shows a retry message
