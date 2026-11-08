@@ -10,7 +10,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://api.apiyi.com/v1"
-DEFAULT_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_MODEL = "deepseek-v4-1-flash-260910"
 
 
 class LLMError(Exception):
@@ -42,12 +42,15 @@ async def complete_json(system: str, prompt: str):
     key = (os.getenv("API_KEY", "").strip() or os.getenv("OPENROUTER_API_KEY", "")).strip()
     if not key:
         raise LLMError(501, "misconfigured", "The AI service is not configured")
+    model = (os.getenv("MODEL_NAME", "").strip() or os.getenv("OPENROUTER_MODEL", "")).strip() or DEFAULT_MODEL
     body = {
-        "model": (os.getenv("MODEL_NAME", "").strip() or os.getenv("OPENROUTER_MODEL", "")).strip() or DEFAULT_MODEL,
+        "model": model,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
         "max_tokens": 8000,
         "response_format": {"type": "json_object"},
     }
+    if "deepseek" in model:
+        body["reasoning_effort"] = "none"  # no thinking pass: a visitor waits on every call
     url = ((os.getenv("API_BASE_URL", "").strip() or os.getenv("OPENROUTER_BASE_URL", "")).strip() or DEFAULT_BASE_URL).rstrip("/") + "/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "X-Title": "SG Wardrobe"}
     async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:

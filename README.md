@@ -69,7 +69,7 @@ and anything they add (photos included) stays in their own browser.
 ## AI Integration
 
 All AI features go through [OpenRouter](https://openrouter.ai/) (default model
-`gemini-3.5-flash-lite`, set with `MODEL_NAME`). The browser never talks
+`deepseek-v4-1-flash-260910`, set with `MODEL_NAME`). The browser never talks
 to the model directly: it sends **structured data** (task type, closet list,
 measurements, live conditions) to a small FastAPI service on Google Cloud Run
 (`backend/`), which builds the prompt itself, holds the API key and calls
